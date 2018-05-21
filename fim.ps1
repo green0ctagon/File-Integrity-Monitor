@@ -62,7 +62,6 @@ function doFimCheck {
         }
 }
 
-
 function getFim {
         $dirs = @()
         foreach ($folder in ($dirList)) {
