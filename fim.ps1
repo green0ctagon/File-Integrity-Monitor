@@ -5,7 +5,7 @@
 
 $configFile = "C:\Users\TestUser\Desktop\Testing\config.txt"  #specify a config file containing directories to monitor
 $logFile = "C:\Users\TestUser\Desktop\Testing\fim-log.txt"    #specify a file location in which you'd like to log FIM events locally
-$tempFile = "C:\Users\TestUser\Desktop\Testing\tempfile.txt"  #specify a tmp file for the program to write to
+$tempFile = "C:\Users\TestUser\Desktop\Testing\tempfile.txt"  #specify a tmp file for the program to write to (gets deleted post-runtime)
 $ip = "192.168.11.39"                                           # enter syslog server IP 
 $port = 2514                                                    # enter your syslog server's listen port
 
