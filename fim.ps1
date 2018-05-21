@@ -3,19 +3,29 @@
 # Written: Lee Mazzoleni
 
 
+$configFile = "C:\Users\TestUser\Desktop\Testing\config.txt"  #specify a config file containing directories to monitor
+$logFile = "C:\Users\TestUser\Desktop\Testing\fim-log.txt"    #specify a file location in which you'd like to log FIM events locally
+$tempFile = "C:\Users\TestUser\Desktop\Testing\tempfile.txt"  #specify a tmp file for the program to write to
+$ip = "192.168.11.39"                                           # enter syslog server IP 
+$port = 2514                                                    # enter your syslog server's listen port
+
 function alertGen {
     $activeUser = $($(qwinsta.exe | findstr Active) -split "\s+")[1]
     $detectedTime = Get-Date -Format u
     #could also add the most recently logged in user by parsing out last 4624 event ID
     if($activeUser) {
-        $event = -join$('ALERT:','"Change Detected" TimeDetected:"',$detectedTime,'" FIMdir:"',$FIMdir,'" ChangedProperties:"',$discrepancies,'" ActiveUser(s):"',$activeUser,'"')
+        $event = -join$('ALERT:"Change Detected" HostName:"',$hostName,'" FIMdir:"',$FIMdir,'" ChangedProperties:"',$discrepancies,'" ActiveUser(s):"',$activeUser,'" TimeDetected:"',$detectedTime,'"')
     } else {
-        $event = -join$('ALERT:','"Change Detected" TimeDetected:"',$detectedTime,'" FIMdir:"',$FIMdir,'" ChangedProperties:"',$discrepancies,'" ActiveUser(s):"n/a"')
+        $event = -join$('ALERT:"Change Detected" HostName:"',$hostName,'" FIMdir:"',$FIMdir,'" ChangedProperties:"',$discrepancies,'" ActiveUser(s):"n/a" TimeDetected:"',$detectedTime)
     }
-    #log the event locally before shipping to SIEM
+    #log the alert locally before shipping to SIEM/syslog server
     $event >> $logFile
+    #ship to SIEM
+    $Enc = [System.Text.Encoding]::ASCII
+    $Buffer = $Enc.GetBytes($event)
+	$sock.Connect($server)
+	$sendit = $sock.Send($Buffer)
 }
-
 
 function doFimCheck {
         #make sure there are at least two lines in the log file to compare
@@ -37,11 +47,9 @@ function doFimCheck {
                 $dataIndices = @{ 5 = "LastAccessed"; 7 = "LastWritten"; 9 = "TotalChildren"; 11 = "SubFolders"; 13 = "OtherFiles" };
                 $discrepancies = ""
                 foreach ($key in $dataIndices.keys) {
-                    #-join $('The key is ',$key,' and its corresponding value is ',$dataIndices[$key])
                     $oldData = $($baseLine -split '"')[$key]
                     $newData = $($newLine -split '"')[$key]
                     if ($newData -ne $oldData) {
-                        #-join $('ALERT:"Change detected to Monitored Directory" FIMdir:"',$FIMdir,'" Old',$dataIndices[$key],':"',$oldData,'" New',$dataIndices[$key],':"',$newData,'"')
                         $discrepancies += $dataIndices[$key] + ','
                     }
                 }
@@ -64,7 +72,6 @@ function getFim {
             $lastAccess = $(Get-ItemProperty -Path "$folder" -Name LastAccessTime).LastAccessTime;
             $dirs = Get-ChildItem -Recurse "$folder" | Where-Object { $_.Attributes -eq 'Directory' } | Measure-Object;
             $dirs = $dirs.Count;
-            #"THE COUNT OF SUBFOLDERS IS $dirs"
             if ($dirs -eq 0 -or !$dirs) {
                 $dirs = "0"
             }
@@ -76,16 +83,29 @@ function getFim {
             $fileCount = $children - $dirs;    
             $timeChecked = Get-Date -Format u
             $fim = -join $('Hostname:"',$hostName,'" FIMDirectory:"',$alias,'" LastAccessed:','"',$lastAccess,'" LastWritten:"',$lastWrite,'" TotalChildren:"',$children,'" Subfolders:"',$dirs,'" OtherFiles:"',$fileCount,'" TimeChecked:"',$timeChecked,'"');
+            #log the regular events locally before shipping them to the SIEM/syslog server
             $fim >> "$logFile";
+            #ship to SIEM
+            $Enc = [System.Text.Encoding]::ASCII
+            $Buffer = $Enc.GetBytes($fim)
+            $sock.Connect($server)
+            $sendit = $sock.Send($Buffer)
             doFimCheck;
         }
 }
 
+#prep udp socket
+$address = [system.net.IPAddress]::Parse($ip)
+$server = New-Object System.Net.IPEndPoint $address, $port
+$new_socket = [System.Net.Sockets.AddressFamily]::InterNetwork 
+$socket_type = [System.Net.Sockets.SocketType]::Dgram 
+$protocol = [System.Net.Sockets.ProtocolType]::UDP 
+$sock = New-Object System.Net.Sockets.Socket $new_socket, $socket_type, $protocol
+$sock.TTL = 90
 
-$configFile = "C:\Users\testuser\Desktop\Testing\config.txt"
-$logFile = "C:\Users\testuser\Desktop\Testing\fim-log.txt"
-$tempFile = "C:\Users\testuser\Desktop\Testing\tempfile.txt"
-$time = Get-Date
+
+# read the configuration file and validate the presence of each listed directory before proceeding
+# validated directories are appended to an array, "dir_list" which will then be iterated through for FIM.
 $hostName = $(HOSTNAME.EXE) -replace "`n|`r"
 $dirList = @()
 Get-Content $configFile | ForEach-Object {
