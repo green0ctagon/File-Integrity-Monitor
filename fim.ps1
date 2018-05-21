@@ -1,6 +1,6 @@
 # File Integrity Monitor
 # Compatible w/ PowerShell 2.0-4.0 (win7,2008,2012,etc)
-# Written: Lee Mazzoleni
+# Written: Lee Mazzoleni, OSCP, GPEN
 
 
 $configFile = "C:\Users\TestUser\Desktop\Testing\config.txt"  #specify a config file containing directories to monitor
