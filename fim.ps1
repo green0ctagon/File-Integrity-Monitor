@@ -1,5 +1,6 @@
-# File Integrity Monitor
+# File Integrity Monitor w/ Remote Logging
 # Compatible w/ PowerShell 2.0-4.0 (win7,2008,2012,etc)
+# Compatible w/ Syslog/Rsyslog/any UDP syslog server
 # Written: Lee Mazzoleni, OSCP, GPEN
 
 
