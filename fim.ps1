@@ -21,7 +21,9 @@ function alertGen {
     }
     #log the alert locally before shipping to SIEM/syslog server
     $event >> $logFile
-    #ship to SIEM
+    #ship to SIEM after sleeping for a randomized amount of time (this is to prevent multiple clients from sending data at the same exact time)
+    $sleepyTime = Get-Random(1..10)
+    sleep $sleepytime
     $Enc = [System.Text.Encoding]::ASCII
     $Buffer = $Enc.GetBytes($event)
 	$sock.Connect($server)
