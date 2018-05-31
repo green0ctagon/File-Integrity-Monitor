@@ -120,3 +120,5 @@ Get-Content $configFile | ForEach-Object {
 }
 
 getFim
+Remove-Variable -Name * -ErrorAction SilentlyContinue
+[gc]::collect()
